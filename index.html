@@ -209,28 +209,34 @@
         function processarTipoBalanceamento() {
             const tracking = selectedOS.full_tracking || selectedOS.tracking || [];
             
-            // Procura se o Conjunto Rotativo foi finalizado na montagem anterior (Ignorando case)
-            const conjuntoRotativo = tracking.find(t => {
-                const name = (t.component_name || t.component || '').toUpperCase();
-                return name === 'CONJUNTO ROTATIVO';
-            });
+            // Busca blindada das peças
+            const eixo = tracking.find(t => (t.component_name || t.component || '').toUpperCase() === 'EIXO');
+            const conjuntoRotativo = tracking.find(t => (t.component_name || t.component || '').toUpperCase() === 'CONJUNTO ROTATIVO');
             
             const badge = document.getElementById('balancing-type-badge');
             const title = document.getElementById('balancing-title');
             const desc = document.getElementById('balancing-description');
             const btn = document.getElementById('btn-concluir-balanceamento');
 
+            const stageEixo = eixo ? (eixo.target_sector || eixo.current_stage || eixo.stage || '').toUpperCase() : '';
             const stageConjunto = conjuntoRotativo ? (conjuntoRotativo.target_sector || conjuntoRotativo.current_stage || conjuntoRotativo.stage || '').toUpperCase() : '';
-            const isConjuntoNoSetor = stageConjunto === 'BALANCEAMENTO';
 
-            // Lógica 80/20: Se o conjunto rotativo foi montado e está aguardando o primeiro balanceamento
-            if (conjuntoRotativo && isConjuntoNoSetor && conjuntoRotativo.status === 'Aguardando') {
+            // ESTADO 1: Balanceamento Solo do Eixo
+            if (eixo && stageEixo === 'BALANCEAMENTO' && eixo.status === 'Aguardando') {
+                badge.innerText = "PRIMEIRO BALANCEAMENTO (EIXO SOLO)";
+                title.innerText = "Análise Solo do Eixo";
+                desc.innerText = "Realizando aferições rotacionais para garantir estabilidade mecânica sob pressão.";
+                btn.innerText = "Balancear Eixo e Enviar para Montagem";
+            } 
+            // ESTADO 2: Balanceamento do Conjunto Rotativo (Núcleo)
+            else if (conjuntoRotativo && stageConjunto === 'BALANCEAMENTO' && conjuntoRotativo.status === 'Aguardando') {
                 badge.innerText = "PRIMEIRO BALANCEAMENTO (CONJUNTO ROTATIVO)";
                 title.innerText = "Balanceamento de Núcleo (Conjunto Rotativo)";
                 desc.innerText = "Realizando balanceamento dinâmico no núcleo para validação de estabilidade rotativa e eliminação de vibração.";
                 btn.innerText = "Concluir Balanceamento de Núcleo e Enviar de volta para a Montagem";
-            } else {
-                // Se chegou ao balanceamento sem pendências do conjunto, é o balanceamento da peça inteira
+            } 
+            // ESTADO 3: Balanceamento Final (Peça Completa)
+            else {
                 badge.innerText = "BALANCEAMENTO FINAL (PEÇA COMPLETA)";
                 title.innerText = "Aferição Final de Peça Inteira";
                 desc.innerText = "Aferição final em ambiente simulado de fluxo. Validação final de estabilidade acústica e mecânica completa.";
