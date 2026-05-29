@@ -259,7 +259,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        os_id: selectedOS.os_id,
+                        os_id: selectedOS.service_order_id || selectedOS.os_id || selectedOS.id,
                         component: tipoFinalizado,
                         target: setorAlvo,
                         executed_services: [tipoFinalizado === 'Conjunto Rotativo' ? 'Balanceamento de Conjunto Rotativo' : 'Balanceamento Final']
