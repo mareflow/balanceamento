@@ -211,8 +211,8 @@
             const desc = document.getElementById('balancing-description');
             const btn = document.getElementById('btn-concluir-balanceamento');
 
-            const stageConjunto = conjuntoRotativo ? (conjuntoRotativo.target_sector || conjuntoRotativo.current_stage || conjuntoRotativo.stage) : '';
-            const isConjuntoNoSetor = stageConjunto === 'BALANCEAMENTO' || stageConjunto === 'Balanceamento';
+            const stageConjunto = conjuntoRotativo ? (conjuntoRotativo.target_sector || conjuntoRotativo.current_stage || conjuntoRotativo.stage || '').toUpperCase() : '';
+            const isConjuntoNoSetor = stageConjunto === 'BALANCEAMENTO';
 
             // Lógica 80/20: Se o conjunto rotativo foi montado e está aguardando o primeiro balanceamento
             if (conjuntoRotativo && isConjuntoNoSetor && conjuntoRotativo.status === 'Aguardando') {
@@ -231,13 +231,19 @@
 
         function confirmarConclusao() {
             const tracking = selectedOS.full_tracking || selectedOS.tracking || [];
-            const conjuntoRotativo = tracking.find(t => t.component_name === 'Conjunto Rotativo' || t.component === 'Conjunto Rotativo');
+            const conjuntoRotativo = tracking.find(t => {
+                const name = (t.component_name || t.component || '').toUpperCase();
+                return name === 'CONJUNTO ROTATIVO';
+            });
 
             const modal = document.getElementById('custom-modal');
             const desc = document.getElementById('modal-desc');
             const confirmBtn = document.getElementById('modal-confirm-btn');
 
-            if (conjuntoRotativo && conjuntoRotativo.status === 'Aguardando') {
+            const stageConjunto = conjuntoRotativo ? (conjuntoRotativo.target_sector || conjuntoRotativo.current_stage || conjuntoRotativo.stage || '').toUpperCase() : '';
+            const isConjuntoNoSetor = stageConjunto === 'BALANCEAMENTO';
+
+            if (conjuntoRotativo && isConjuntoNoSetor && conjuntoRotativo.status === 'Aguardando') {
                 desc.innerText = "Isso marcará o Conjunto Rotativo como BALANCEADO e retornará a OS para a Montagem para a finalização (Carcaçamento).";
                 confirmBtn.onclick = () => concluirEtapa('MONTAGEM', 'Conjunto Rotativo');
             } else {
