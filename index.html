@@ -86,6 +86,12 @@
                         <i id="balancing-icon" class="fa-solid fa-arrows-spin text-purple-600 text-5xl my-4 animate-spin"></i>
                         <h4 id="balancing-title" class="text-lg font-black text-slate-800 uppercase tracking-tight">Análise Solo do Eixo</h4>
                         <p id="balancing-description" class="text-xs text-slate-500 font-medium max-w-sm mt-2">Realizando aferições rotacionais para garantir estabilidade mecânica sob pressão.</p>
+                        
+                        <!-- NOVO: Campo de Escrita para Pesos de Balanceamento -->
+                        <div class="mt-6 w-full max-w-xs text-left">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Observações de Pesos / Vibração</label>
+                            <input type="text" id="input-balanceamento-peso" placeholder="EX: Removido 0.3g na turbina..." class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:ring-2 focus:ring-purple-600 transition">
+                        </div>
                     </div>
 
                     <!-- BOTÃO DE AÇÃO -->
@@ -194,6 +200,9 @@
                 console.error("❌ [Balanceamento] Exceção na busca:", e);
             }
 
+            // Reseta o campo de escrita de pesos
+            document.getElementById('input-balanceamento-peso').value = '';
+
             processarTipoBalanceamento();
         }
 
@@ -257,8 +266,18 @@
         async function concluirEtapa(setorAlvo, tipoFinalizado) {
             closeModal();
             const btn = document.getElementById('btn-concluir-balanceamento');
+            const pesoObs = document.getElementById('input-balanceamento-peso').value.trim();
+            
             btn.disabled = true;
             btn.innerText = "ENVIANDO...";
+
+            // Salva as observações de peso no array de serviços executados
+            const servicos = [
+                tipoFinalizado === 'Conjunto Rotativo' ? 'Balanceamento de Conjunto Rotativo' : 'Balanceamento Final'
+            ];
+            if (pesoObs) {
+                servicos.push(`Aferições: ${pesoObs}`);
+            }
 
             try {
                 const response = await fetch(API_ACTION, {
@@ -268,7 +287,7 @@
                         os_id: selectedOS.service_order_id || selectedOS.os_id || selectedOS.id,
                         component: tipoFinalizado,
                         target: setorAlvo,
-                        executed_services: [tipoFinalizado === 'Conjunto Rotativo' ? 'Balanceamento de Conjunto Rotativo' : 'Balanceamento Final']
+                        executed_services: servicos
                     })
                 });
 
