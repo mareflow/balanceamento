@@ -246,22 +246,29 @@
 
         function confirmarConclusao() {
             const tracking = selectedOS.full_tracking || selectedOS.tracking || [];
-            const conjuntoRotativo = tracking.find(t => {
-                const name = (t.component_name || t.component || '').toUpperCase();
-                return name === 'CONJUNTO ROTATIVO';
-            });
+            
+            const eixo = tracking.find(t => (t.component_name || t.component || '').toUpperCase() === 'EIXO');
+            const conjuntoRotativo = tracking.find(t => (t.component_name || t.component || '').toUpperCase() === 'CONJUNTO ROTATIVO');
 
             const modal = document.getElementById('custom-modal');
             const desc = document.getElementById('modal-desc');
             const confirmBtn = document.getElementById('modal-confirm-btn');
 
+            const stageEixo = eixo ? (eixo.target_sector || eixo.current_stage || eixo.stage || '').toUpperCase() : '';
             const stageConjunto = conjuntoRotativo ? (conjuntoRotativo.target_sector || conjuntoRotativo.current_stage || conjuntoRotativo.stage || '').toUpperCase() : '';
-            const isConjuntoNoSetor = stageConjunto === 'BALANCEAMENTO';
 
-            if (conjuntoRotativo && isConjuntoNoSetor && conjuntoRotativo.status === 'Aguardando') {
+            // ESTADO 1: O Eixo está aguardando o primeiro balanceamento solo
+            if (eixo && stageEixo === 'BALANCEAMENTO' && eixo.status === 'Aguardando') {
+                desc.innerText = "Isso balanceará o Eixo isolado e o enviará para a mesa de Montagem para iniciar a construção do núcleo.";
+                confirmBtn.onclick = () => concluirEtapa('MONTAGEM', 'EIXO');
+            }
+            // ESTADO 2: O Conjunto Rotativo está aguardando o balanceamento de núcleo
+            else if (conjuntoRotativo && stageConjunto === 'BALANCEAMENTO' && conjuntoRotativo.status === 'Aguardando') {
                 desc.innerText = "Isso marcará o Conjunto Rotativo como BALANCEADO e retornará a OS para a Montagem para a finalização (Carcaçamento).";
                 confirmBtn.onclick = () => concluirEtapa('MONTAGEM', 'Conjunto Rotativo');
-            } else {
+            } 
+            // ESTADO 3: Carcaçamento foi finalizado, é o balanceamento do turbo completo
+            else {
                 desc.innerText = "Isso finalizará com sucesso o ciclo de balanceamento e encaminhará o turbo diretamente ao Controle de Qualidade.";
                 confirmBtn.onclick = () => concluirEtapa('QUALIDADE', 'Peça Inteira');
             }
