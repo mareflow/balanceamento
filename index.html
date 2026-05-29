@@ -173,8 +173,11 @@
             const desc = document.getElementById('balancing-description');
             const btn = document.getElementById('btn-concluir-balanceamento');
 
-            // Lógica 80/20: Se o conjunto rotativo foi montado mas ainda não foi balanceado
-            if (conjuntoRotativo && conjuntoRotativo.status === 'Aguardando') {
+            const stageConjunto = conjuntoRotativo ? (conjuntoRotativo.target_sector || conjuntoRotativo.current_stage || conjuntoRotativo.stage) : '';
+            const isConjuntoNoSetor = stageConjunto === 'BALANCEAMENTO' || stageConjunto === 'Balanceamento';
+
+            // Lógica 80/20: Se o conjunto rotativo foi montado e está aguardando o primeiro balanceamento
+            if (conjuntoRotativo && isConjuntoNoSetor && conjuntoRotativo.status === 'Aguardando') {
                 badge.innerText = "PRIMEIRO BALANCEAMENTO (CONJUNTO ROTATIVO)";
                 title.innerText = "Balanceamento de Núcleo (Conjunto Rotativo)";
                 desc.innerText = "Realizando balanceamento dinâmico no núcleo para validação de estabilidade rotativa e eliminação de vibração.";
