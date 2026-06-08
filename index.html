@@ -88,7 +88,6 @@
                             <button id="btn-parar-balanceamento" onclick="finalizarServicoBal()" class="hidden text-xs bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-4 rounded-xl transition-all uppercase text-[9px] tracking-wider">Parar</button>
                         </div>
 
-                        <!-- CAMPOS DE ENTRADA MODIFICADOS -->
                         <div class="mt-6 w-full max-w-lg text-left grid grid-cols-1 gap-4">
                             <div class="col-span-1">
                                 <label class="block text-[9px] font-black text-slate-400 uppercase mb-1 ml-1">DESEMPENHO</label>
@@ -99,7 +98,6 @@
                                 <input type="text" id="input-observacoes" placeholder="Detalhes de ruído ou comportamento acústico..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-1 focus:ring-purple-600 transition">
                             </div>
                         </div>
-                        <!-- FIM DOS CAMPOS MODIFICADOS -->
                     </div>
 
                     <div class="flex gap-4">
@@ -240,32 +238,31 @@
                 console.error("❌ [Balanceamento] Exceção na busca:", e);
             }
 
-            // MODIFICADO: Reseta os novos campos de entrada
             document.getElementById('input-desempenho').value = '';
             document.getElementById('input-observacoes').value = '';
 
             processarTipoBalanceamento();
         }
 
-        // MAPEADOR DE ESTADOS EM TEMPO REAL PARA O BALANCEAMENTO
         function getActiveBalancingComponent() {
             const tracking = selectedOS.full_tracking || selectedOS.tracking || [];
             
             const eixo = tracking.find(t => (t.component_name || t.component || '').toUpperCase() === 'EIXO');
             const conjuntoRotativo = tracking.find(t => (t.component_name || t.component || '').toUpperCase() === 'CONJUNTO ROTATIVO');
+            const pecaCompleta = tracking.find(t => (t.component_name || t.component || '').toUpperCase() === 'PEÇA INTEIRA');
 
             const stageEixo = eixo ? (eixo.target_sector || eixo.current_stage || eixo.stage || '').toUpperCase() : '';
             const stageConjunto = conjuntoRotativo ? (conjuntoRotativo.target_sector || conjuntoRotativo.current_stage || conjuntoRotativo.stage || '').toUpperCase() : '';
+            const stageCompleta = pecaCompleta ? (pecaCompleta.target_sector || pecaCompleta.current_stage || pecaCompleta.stage || '').toUpperCase() : '';
 
-            const statusEixo = eixo ? (eixo.status || '').toUpperCase() : '';
-            const statusConjunto = conjuntoRotativo ? (conjuntoRotativo.status || '').toUpperCase() : '';
-
-            if (eixo && stageEixo === 'BALANCEAMENTO' && statusEixo !== 'FINALIZADO') {
+            // Regra Corrigida: O componente permanece ativo no Balanceamento enquanto seu estágio físico atual for 'BALANCEAMENTO'
+            if (eixo && stageEixo === 'BALANCEAMENTO') {
                 return { name: 'EIXO', raw: eixo };
-            } else if (conjuntoRotativo && stageConjunto === 'BALANCEAMENTO' && statusConjunto !== 'FINALIZADO') {
+            } else if (conjuntoRotativo && stageConjunto === 'BALANCEAMENTO') {
                 return { name: 'CONJUNTO ROTATIVO', raw: conjuntoRotativo };
+            } else if (pecaCompleta && stageCompleta === 'BALANCEAMENTO') {
+                return { name: 'PEÇA INTEIRA', raw: pecaCompleta };
             } else {
-                const pecaCompleta = tracking.find(t => (t.component_name || t.component || '').toUpperCase() === 'PEÇA INTEIRA');
                 return { name: 'PEÇA INTEIRA', raw: pecaCompleta };
             }
         }
@@ -283,12 +280,10 @@
             const timerBadge = document.getElementById('balancing-timer-badge');
             const btnParar = document.getElementById('btn-parar-balanceamento');
 
-            // MODIFICADO: Lista de inputs atualizada
             const inputs = ['input-desempenho', 'input-observacoes'];
-
             const statusPeca = raw?.status || 'Aguardando';
 
-            // ESTADO 1: Aguardando Serviço (Abre o Overlay de Início)
+            // ESTADO 1: Aguardando Serviço
             if (statusPeca === 'Aguardando') {
                 btnIniciarOverlay.classList.remove('hidden');
                 timerBadge.classList.add('hidden');
@@ -297,7 +292,7 @@
                 btnReprovar.disabled = true;
                 inputs.forEach(id => document.getElementById(id).disabled = true);
             } 
-            // ESTADO 2: Em Execução (Abre os cronômetros e habilita inputs)
+            // ESTADO 2: Em Execução
             else if (statusPeca === 'Em Execução') {
                 btnIniciarOverlay.classList.add('hidden');
                 timerBadge.classList.remove('hidden');
@@ -306,33 +301,24 @@
                 btnReprovar.disabled = true;
                 inputs.forEach(id => document.getElementById(id).disabled = false);
             } 
-            // ESTADO 3: Finalizado (Habilita botões finais e bloqueia inputs)
+            // ESTADO 3: Finalizado (Mantém os inputs editáveis para ajustes de dados finos antes do envio)
             else {
                 btnIniciarOverlay.classList.add('hidden');
                 timerBadge.classList.add('hidden');
                 btnParar.classList.add('hidden');
                 btnConcluirFinal.disabled = false;
                 btnReprovar.disabled = false;
-                inputs.forEach(id => document.getElementById(id).disabled = true);
+                inputs.forEach(id => document.getElementById(id).disabled = false);
 
                 const trackingData = raw && raw.tracking_data ? (typeof raw.tracking_data === 'string' ? JSON.parse(raw.tracking_data) : raw.tracking_data) : [];
                 const savedLog = Array.isArray(trackingData) ? trackingData.find(log => log.service === name) : null;
                 
-                // MODIFICADO: Preenche os novos campos com dados salvos
                 if (savedLog) {
-                    // Combina dados de performance antigos para exibição, se existirem
-                    const oldPerformanceData = [
-                        savedLog.initial_vibration ? `Vib. Inicial: ${savedLog.initial_vibration}` : '',
-                        savedLog.final_vibration ? `Vib. Final: ${savedLog.final_vibration}` : '',
-                        savedLog.weight_offset || ''
-                    ].filter(Boolean).join('; ');
-                    
-                    document.getElementById('input-desempenho').value = oldPerformanceData;
+                    document.getElementById('input-desempenho').value = savedLog.weight_offset || '';
                     document.getElementById('input-observacoes').value = savedLog.observations || '';
                 }
             }
 
-            // Atualiza os nomes e textos de acordo com a peça da vez
             if (name === 'EIXO') {
                 badge.innerText = "PRIMEIRO BALANCEAMENTO (EIXO SOLO)";
                 title.innerText = "Análise Solo do Eixo";
@@ -351,7 +337,6 @@
             }
         }
 
-        // INICIA O CRONÔMETRO DE BALANCEAMENTO DA PEÇA DA VEZ
         async function iniciarServicoBal() {
             if (!selectedOS) return;
             const { name } = getActiveBalancingComponent();
@@ -394,7 +379,6 @@
             } catch (e) { console.error(e); }
         }
 
-        // PARA O CRONÔMETRO E PERSISTE O LOG COM TODAS AS MEDIDAS DE ENTRADA DO GRID
         async function finalizarServicoBal() {
             if (!selectedOS) return;
             const { name, raw } = getActiveBalancingComponent();
@@ -406,17 +390,15 @@
 
             const durationSeconds = Math.max(1, Math.floor((new Date() - new Date(startTimeStr)) / 1000));
 
-            // MODIFICADO: Coleta dados dos novos inputs
             const desempenhoValue = document.getElementById('input-desempenho').value.trim();
             const observacoesValue = document.getElementById('input-observacoes').value.trim();
 
-            // MODIFICADO: Estrutura de dados simplificada
             const trackingData = [{
                 service: name,
                 start_time: startTimeStr,
                 end_time: new Date().toISOString(),
                 duration_seconds: durationSeconds,
-                weight_offset: desempenhoValue, // Usando este campo para "Desempenho"
+                weight_offset: desempenhoValue,
                 observations: observacoesValue
             }];
 
@@ -455,7 +437,6 @@
             } catch (e) { console.error(e); }
         }
 
-        // LÓGICA DE REPROVAÇÃO INTEGRADA: EXCLUSÃO DE TRACKING E ENVIO DIRETO PARA STANDBY
         async function reprovarBalanceamento() {
             if (!selectedOS) return;
             const osId = selectedOS.service_order_id || selectedOS.id;
@@ -469,7 +450,6 @@
             btn.innerText = "REPROVANDO...";
 
             try {
-                // 1. Altera o status mestre para Standby
                 const { error: osError } = await supabaseClient
                     .from('service_orders')
                     .update({ status: 'Standby' })
@@ -477,7 +457,6 @@
 
                 if (osError) throw osError;
 
-                // 2. Grava evento de histórico
                 await supabaseClient
                     .from('history_events')
                     .insert({
@@ -487,7 +466,6 @@
                         timestamp: new Date().toISOString()
                     });
 
-                // 3. Deleta registros residuais de tracking físico criados para esta OS para evitar lógicas orfãs
                 await supabaseClient
                     .from('component_tracking')
                     .delete()
@@ -526,15 +504,20 @@
         async function concluirEtapa(setorAlvo, tipoFinalizado) {
             closeModal();
             const btn = document.getElementById('btn-concluir-balanceamento');
-            // MODIFICADO: Pega observações do novo campo de desempenho
             const desempenhoObs = document.getElementById('input-desempenho').value.trim();
             
             btn.disabled = true;
             btn.innerText = "ENVIANDO...";
 
-            const servicos = [
-                tipoFinalizado === 'Conjunto Rotativo' ? 'Balanceamento de Conjunto Rotativo' : 'Balanceamento Final'
-            ];
+            const servicos = [];
+            if (tipoFinalizado.toUpperCase() === 'EIXO') {
+                servicos.push('Balanceamento Solo do Eixo');
+            } else if (tipoFinalizado.toUpperCase() === 'CONJUNTO ROTATIVO') {
+                servicos.push('Balanceamento de Conjunto Rotativo');
+            } else {
+                servicos.push('Balanceamento Final');
+            }
+
             if (desempenhoObs) {
                 servicos.push(`Aferições: ${desempenhoObs}`);
             }
@@ -572,7 +555,6 @@
             document.getElementById('custom-modal').classList.add('hidden');
         }
 
-        // Intervalo de Atualização dos Cronômetros Pulsando na Tela (A cada 1 segundo)
         setInterval(() => {
             if (!selectedOS) return;
             const osId = selectedOS.service_order_id || selectedOS.os_id || selectedOS.id;
