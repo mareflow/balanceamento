@@ -372,18 +372,22 @@
                     localStorage.setItem(`timer_${osId}_${name}`, startTime);
 
                     if (!selectedOS.tracking) selectedOS.tracking = [];
-                    let trk = selectedOS.tracking.find(t => (t.component_name || t.component || '').toUpperCase() === name.toUpperCase());
-                    if (trk) {
-                        trk.status = 'Em Execução';
-                        trk.rework_start_time = startTime;
-                    } else {
-                        selectedOS.tracking.push({
-                            component_name: name,
-                            status: 'Em Execução',
-                            rework_start_time: startTime,
-                            current_stage: 'BALANCEAMENTO'
-                        });
-                    }
+                    if (!selectedOS.full_tracking) selectedOS.full_tracking = [];
+
+                    [selectedOS.tracking, selectedOS.full_tracking].forEach(lista => {
+                        let trk = lista.find(t => (t.component_name || t.component || '').toUpperCase() === name.toUpperCase());
+                        if (trk) {
+                            trk.status = 'Em Execução';
+                            trk.rework_start_time = startTime;
+                        } else {
+                            lista.push({
+                                component_name: name,
+                                status: 'Em Execução',
+                                rework_start_time: startTime,
+                                current_stage: 'BALANCEAMENTO'
+                            });
+                        }
+                    });
 
                     renderSidebar();
                     processarTipoBalanceamento();
@@ -574,8 +578,9 @@
         // Intervalo de Atualização dos Cronômetros Pulsando na Tela (A cada 1 segundo)
         setInterval(() => {
             if (!selectedOS) return;
+            const osId = selectedOS.service_order_id || selectedOS.os_id || selectedOS.id;
             const { name } = getActiveBalancingComponent();
-            const timerKey = `timer_${selectedOS.id}_${name}`;
+            const timerKey = `timer_${osId}_${name}`;
             const startTimeStr = localStorage.getItem(timerKey);
             
             if (startTimeStr) {
