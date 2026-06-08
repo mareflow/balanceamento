@@ -88,24 +88,18 @@
                             <button id="btn-parar-balanceamento" onclick="finalizarServicoBal()" class="hidden text-xs bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-4 rounded-xl transition-all uppercase text-[9px] tracking-wider">Parar</button>
                         </div>
 
-                        <div class="mt-6 w-full max-w-md text-left grid grid-cols-2 gap-4">
+                        <!-- CAMPOS DE ENTRADA MODIFICADOS -->
+                        <div class="mt-6 w-full max-w-lg text-left grid grid-cols-1 gap-4">
                             <div class="col-span-1">
-                                <label class="block text-[9px] font-black text-slate-400 uppercase mb-1 ml-1">Vibração Inicial (g)</label>
-                                <input type="text" id="input-vibracao-inicial" placeholder="Ex: 1.5G" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-1 focus:ring-purple-600 transition">
+                                <label class="block text-[9px] font-black text-slate-400 uppercase mb-1 ml-1">DESEMPENHO</label>
+                                <input type="text" id="input-desempenho" placeholder="Informe os dados de desempenho (vibração, massa, etc...)" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-1 focus:ring-purple-600 transition">
                             </div>
                             <div class="col-span-1">
-                                <label class="block text-[9px] font-black text-slate-400 uppercase mb-1 ml-1">Vibração Final (g)</label>
-                                <input type="text" id="input-vibracao-final" placeholder="Ex: 0.1G" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-1 focus:ring-purple-600 transition">
-                            </div>
-                            <div class="col-span-2">
-                                <label class="block text-[9px] font-black text-slate-400 uppercase mb-1 ml-1">Massa Adicionada / Removida</label>
-                                <input type="text" id="input-balanceamento-peso" placeholder="EX: Removido 0.3g na turbina..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-1 focus:ring-purple-600 transition">
-                            </div>
-                            <div class="col-span-2">
-                                <label class="block text-[9px] font-black text-slate-400 uppercase mb-1 ml-1">Observações Técnicas</label>
-                                <input type="text" id="input-balancing-obs" placeholder="Detalhes de ruído ou comportamento acústico..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-1 focus:ring-purple-600 transition">
+                                <label class="block text-[9px] font-black text-slate-400 uppercase mb-1 ml-1">OBSERVAÇÕES</label>
+                                <input type="text" id="input-observacoes" placeholder="Detalhes de ruído ou comportamento acústico..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-1 focus:ring-purple-600 transition">
                             </div>
                         </div>
+                        <!-- FIM DOS CAMPOS MODIFICADOS -->
                     </div>
 
                     <div class="flex gap-4">
@@ -246,11 +240,9 @@
                 console.error("❌ [Balanceamento] Exceção na busca:", e);
             }
 
-            // Reseta o campo de escrita de pesos e inputs
-            document.getElementById('input-vibracao-inicial').value = '';
-            document.getElementById('input-vibracao-final').value = '';
-            document.getElementById('input-balanceamento-peso').value = '';
-            document.getElementById('input-balancing-obs').value = '';
+            // MODIFICADO: Reseta os novos campos de entrada
+            document.getElementById('input-desempenho').value = '';
+            document.getElementById('input-observacoes').value = '';
 
             processarTipoBalanceamento();
         }
@@ -291,7 +283,8 @@
             const timerBadge = document.getElementById('balancing-timer-badge');
             const btnParar = document.getElementById('btn-parar-balanceamento');
 
-            const inputs = ['input-vibracao-inicial', 'input-vibracao-final', 'input-balanceamento-peso', 'input-balancing-obs'];
+            // MODIFICADO: Lista de inputs atualizada
+            const inputs = ['input-desempenho', 'input-observacoes'];
 
             const statusPeca = raw?.status || 'Aguardando';
 
@@ -322,14 +315,20 @@
                 btnReprovar.disabled = false;
                 inputs.forEach(id => document.getElementById(id).disabled = true);
 
-                // Preenche os campos estáticos com o que foi medido no cronômetro
                 const trackingData = raw && raw.tracking_data ? (typeof raw.tracking_data === 'string' ? JSON.parse(raw.tracking_data) : raw.tracking_data) : [];
                 const savedLog = Array.isArray(trackingData) ? trackingData.find(log => log.service === name) : null;
+                
+                // MODIFICADO: Preenche os novos campos com dados salvos
                 if (savedLog) {
-                    document.getElementById('input-vibracao-inicial').value = savedLog.initial_vibration || '';
-                    document.getElementById('input-vibracao-final').value = savedLog.final_vibration || '';
-                    document.getElementById('input-balanceamento-peso').value = savedLog.weight_offset || '';
-                    document.getElementById('input-balancing-obs').value = savedLog.observations || '';
+                    // Combina dados de performance antigos para exibição, se existirem
+                    const oldPerformanceData = [
+                        savedLog.initial_vibration ? `Vib. Inicial: ${savedLog.initial_vibration}` : '',
+                        savedLog.final_vibration ? `Vib. Final: ${savedLog.final_vibration}` : '',
+                        savedLog.weight_offset || ''
+                    ].filter(Boolean).join('; ');
+                    
+                    document.getElementById('input-desempenho').value = oldPerformanceData;
+                    document.getElementById('input-observacoes').value = savedLog.observations || '';
                 }
             }
 
@@ -407,21 +406,18 @@
 
             const durationSeconds = Math.max(1, Math.floor((new Date() - new Date(startTimeStr)) / 1000));
 
-            // Coleta dados dos inputs do card
-            const vibInicial = document.getElementById('input-vibracao-inicial').value.trim();
-            const vibFinal = document.getElementById('input-vibracao-final').value.trim();
-            const pesoValue = document.getElementById('input-balanceamento-peso').value.trim();
-            const balObs = document.getElementById('input-balancing-obs').value.trim();
+            // MODIFICADO: Coleta dados dos novos inputs
+            const desempenhoValue = document.getElementById('input-desempenho').value.trim();
+            const observacoesValue = document.getElementById('input-observacoes').value.trim();
 
+            // MODIFICADO: Estrutura de dados simplificada
             const trackingData = [{
                 service: name,
                 start_time: startTimeStr,
                 end_time: new Date().toISOString(),
                 duration_seconds: durationSeconds,
-                initial_vibration: vibInicial,
-                final_vibration: vibFinal,
-                weight_offset: pesoValue,
-                observations: balObs
+                weight_offset: desempenhoValue, // Usando este campo para "Desempenho"
+                observations: observacoesValue
             }];
 
             try {
@@ -530,7 +526,8 @@
         async function concluirEtapa(setorAlvo, tipoFinalizado) {
             closeModal();
             const btn = document.getElementById('btn-concluir-balanceamento');
-            const pesoObs = document.getElementById('input-balanceamento-peso').value.trim();
+            // MODIFICADO: Pega observações do novo campo de desempenho
+            const desempenhoObs = document.getElementById('input-desempenho').value.trim();
             
             btn.disabled = true;
             btn.innerText = "ENVIANDO...";
@@ -538,8 +535,8 @@
             const servicos = [
                 tipoFinalizado === 'Conjunto Rotativo' ? 'Balanceamento de Conjunto Rotativo' : 'Balanceamento Final'
             ];
-            if (pesoObs) {
-                servicos.push(`Aferições: ${pesoObs}`);
+            if (desempenhoObs) {
+                servicos.push(`Aferições: ${desempenhoObs}`);
             }
 
             try {
