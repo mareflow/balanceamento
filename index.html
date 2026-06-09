@@ -165,6 +165,7 @@
 
         const API_QUEUE = 'https://webhook.mareflow.com.br/webhook/production/balancing-queue';
         const API_ACTION = 'https://webhook.mareflow.com.br/webhook/production/component-routing';
+        const API_QUALITY_ROUTING = 'https://webhook.mareflow.com.br/webhook/production/final-quality-routing';
         let selectedOS = null;
         let queueData = [];
 
@@ -523,7 +524,10 @@
             }
 
             try {
-                const response = await fetch(API_ACTION, {
+                // Desvio de Rota: Se for Peça Inteira, aciona o novo workflow dedicado de Qualidade. Se não, usa o roteamento geral.
+                const urlDestino = tipoFinalizado.toUpperCase() === 'PEÇA INTEIRA' ? API_QUALITY_ROUTING : API_ACTION;
+
+                const response = await fetch(urlDestino, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
