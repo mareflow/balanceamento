@@ -113,7 +113,7 @@
         </main>
     </div>
 
-    <div id="custom-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm hidden p-4">
+    <div id="custom-modal" style="display: none;" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
         <div id="modal-card" class="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl border border-slate-100 text-center">
             <div class="w-20 h-20 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-6">
                 <i class="fa-solid fa-paper-plane text-3xl"></i>
@@ -498,7 +498,7 @@
                 confirmBtn.onclick = () => concluirEtapa('QUALIDADE', 'Peça Inteira');
             }
 
-            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
         }
 
         async function concluirEtapa(setorAlvo, tipoFinalizado) {
@@ -552,7 +552,7 @@
         }
 
         function closeModal() {
-            document.getElementById('custom-modal').classList.add('hidden');
+            document.getElementById('custom-modal').style.display = 'none';
         }
 
         setInterval(() => {
