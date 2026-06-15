@@ -499,7 +499,11 @@
                         });
 
                         if (response.ok) {
-                            alert("Reprovação técnica registrada e OS movida com sucesso para Standby.");
+                            let destinoText = "Montagem";
+                            if (name.toUpperCase() === "PEÇA INTEIRA") {
+                                destinoText = "Controle de Qualidade";
+                            }
+                            alert(`Ajuste registrado com sucesso! O turbo foi encaminhado para o setor de: ${destinoText}.`);
                             window.location.reload();
                         } else {
                             alert("Ocorreu um erro no servidor ao registrar a reprovação.");
