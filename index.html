@@ -438,49 +438,83 @@
             } catch (e) { console.error(e); }
         }
 
-        async function reprovarBalanceamento() {
+        function reprovarBalanceamento() {
             if (!selectedOS) return;
-            const osId = selectedOS.service_order_id || selectedOS.id;
             
-            const reason = prompt("Por favor, descreva o motivo da reprovação técnica para mover a OS para Standby:");
-            if (reason === null) return; 
-            if (!reason.trim()) { alert("Você precisa preencher o motivo da reprova."); return; }
-
-            const btn = document.getElementById('btn-reprovar-balanceamento');
-            btn.disabled = true;
-            btn.innerText = "REPROVANDO...";
-
-            try {
-                const { error: osError } = await supabaseClient
-                    .from('service_orders')
-                    .update({ status: 'Standby' })
-                    .eq('id', osId);
-
-                if (osError) throw osError;
-
-                await supabaseClient
-                    .from('history_events')
-                    .insert({
-                        service_order_id: osId,
-                        action: 'Balanceamento Reprovado',
-                        details: `O balanceador reprovou o processo. Motivo: "${reason}". A OS foi movida para Standby.`,
-                        timestamp: new Date().toISOString()
-                    });
-
-                await supabaseClient
-                    .from('component_tracking')
-                    .delete()
-                    .eq('service_order_id', osId);
-
-                alert("OS movida para Standby com sucesso.");
-                window.location.reload();
-            } catch (e) {
-                console.error(e);
-                alert("Erro ao registrar reprovação.");
-                btn.disabled = false;
-                btn.innerText = "Reprovar e Parar";
-            }
+            // Limpa campos anteriores ao abrir os modais
+            document.getElementById('input-reprova-motivo').value = '';
+            document.getElementById('input-reprova-resolvido').value = '';
+            
+            // Abre o primeiro modal de forma limpa
+            document.getElementById('modal-reprova-motivo').classList.remove('hidden');
+            document.getElementById('modal-reprova-motivo').classList.add('flex');
         }
+
+        // Configuração das ações internas dos novos modais de reprovação sequenciais
+        document.addEventListener('DOMContentLoaded', () => {
+            const btnSeguirReprova = document.getElementById('btn-seguir-reprova');
+            const btnSeguirOsReprova = document.getElementById('btn-seguir-os-reprova');
+
+            if (btnSeguirReprova) {
+                btnSeguirReprova.addEventListener('click', () => {
+                    const motivo = document.getElementById('input-reprova-motivo').value.trim();
+                    if (!motivo) {
+                        alert("Por favor, descreva detalhadamente o motivo da reprovação técnica antes de prosseguir.");
+                        return;
+                    }
+                    // Fecha o primeiro modal e abre o segundo de forma sequencial
+                    document.getElementById('modal-reprova-motivo').classList.add('hidden');
+                    document.getElementById('modal-reprova-resolvido').classList.remove('hidden');
+                    document.getElementById('modal-reprova-resolvido').classList.add('flex');
+                });
+            }
+
+            if (btnSeguirOsReprova) {
+                btnSeguirOsReprova.addEventListener('click', async () => {
+                    const motivo = document.getElementById('input-reprova-motivo').value.trim();
+                    const resolvido = document.getElementById('input-reprova-resolvido').value.trim();
+
+                    if (!resolvido) {
+                        alert("Por favor, descreva o que foi feito ou a tratativa adotada para resolver o problema.");
+                        return;
+                    }
+
+                    btnSeguirOsReprova.disabled = true;
+                    btnSeguirOsReprova.innerText = "ENVIANDO...";
+
+                    const osId = selectedOS.service_order_id || selectedOS.os_id || selectedOS.id;
+                    const { name } = getActiveBalancingComponent();
+
+                    try {
+                        const response = await fetch('https://webhook.mareflow.com.br/webhook/production/balancing-reject', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                os_id: osId,
+                                component_name: name,
+                                rejection_reason: motivo,
+                                resolution_details: resolvido,
+                                user_id: '8ab0d7ed-055c-4480-a1af-eb0b08894682' // UID padrão de transação
+                            })
+                        });
+
+                        if (response.ok) {
+                            alert("Reprovação técnica registrada e OS movida com sucesso para Standby.");
+                            window.location.reload();
+                        } else {
+                            alert("Ocorreu um erro no servidor ao registrar a reprovação.");
+                            btnSeguirOsReprova.disabled = false;
+                            btnSeguirOsReprova.innerText = "Seguir OS";
+                        }
+                    } catch (err) {
+                        console.error("Erro na reprovação técnica:", err);
+                        alert("Falha de conexão.");
+                        btnSeguirOsReprova.disabled = false;
+                        btnSeguirOsReprova.innerText = "Seguir OS";
+                    }
+                });
+            }
+        });
 
         function confirmarConclusao() {
             const { name } = getActiveBalancingComponent();
@@ -575,5 +609,41 @@
             }
         }, 1000);
     </script>
+
+    <!-- MODAL 1: MOTIVO DA REPROVAÇÃO -->
+    <div id="modal-reprova-motivo" class="fixed inset-0 bg-slate-900/80 z-[200] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-[32px] shadow-2xl max-w-sm w-full overflow-hidden border-t-8 border-red-600">
+            <div class="p-8 text-center">
+                <div class="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-black text-slate-800 uppercase tracking-tighter mb-2">Motivo da Reprovação</h3>
+                <p class="text-[11px] text-slate-500 font-medium mb-4 italic">Descreva de forma detalhada o motivo de reprovação mecânica.</p>
+                <textarea id="input-reprova-motivo" rows="3" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-1 focus:ring-red-600 transition resize-none mb-6" placeholder="Descreva aqui o motivo técnico..."></textarea>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('modal-reprova-motivo').classList.add('hidden')" class="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition">Cancelar</button>
+                    <button id="btn-seguir-reprova" class="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg transition">Seguir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: RESOLUÇÃO DA REPROVAÇÃO -->
+    <div id="modal-reprova-resolvido" class="fixed inset-0 bg-slate-900/80 z-[200] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-[32px] shadow-2xl max-w-sm w-full overflow-hidden border-t-8 border-purple-600">
+            <div class="p-8 text-center">
+                <div class="w-16 h-16 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-wrench text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-black text-slate-800 uppercase tracking-tighter mb-2">Como foi resolvido?</h3>
+                <p class="text-[11px] text-slate-500 font-medium mb-4 italic">Descreva as tratativas mecânicas ou ajustes que foram aplicados.</p>
+                <textarea id="input-reprova-resolvido" rows="3" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-1 focus:ring-purple-600 transition resize-none mb-6" placeholder="Descreva como o problema foi solucionado..."></textarea>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('modal-reprova-resolvido').classList.add('hidden')" class="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition">Voltar</button>
+                    <button id="btn-seguir-os-reprova" class="flex-1 py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg transition">Seguir OS</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
